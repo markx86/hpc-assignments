@@ -16,7 +16,7 @@ fi
 
 version="$1"
 
-ref_file=/tmp/hpc-lab-ref.txt
+ref_file=/tmp/hpc-lab-ref_$DATASET.txt
 ver_file=$(mktemp)
 
 if test ! -e "$ref_file"; then
@@ -32,6 +32,7 @@ make build VER=$version DATASET=$DATASET DUMP_ARRAYS=1
 set +e
 
 diff -q $ref_file $ver_file
+echo "File tested: ref: $ref_file and ver: $ver_file"
 if test $? -ne 0; then
   echo "------- Test failed -------"
 else
