@@ -54,8 +54,36 @@ static void print_array(int n,
   fprintf(stderr, "\n");
 }
 
-/* Main computational kernel. The whole function will be timed,
-   including the call and return. */
+
+/* ============================================================================
+ * KERNEL: ADI - Version 2_rc (Row-wise Loop Fusion & Barrier Elimination)
+ * Author: Raffaele Cimino
+ *
+ * Optimization Strategy:
+ *   1. Loop Fusion across Row Operations:
+ *      In standard Polybench (and adi_v1_rc), the row-wise sweep was partitioned
+ *      into 3 separate parallel loops:
+ *        - Forward elimination over all rows
+ *        - Boundary division over all rows
+ *        - Backward substitution over all rows
+ *      Crucial Dependency Insight:
+ *        For any given row `i1`, the computation is strictly self-contained.
+ *        Row `i1` has NO data dependencies on row `i1 - 1` or `i1 + 1` during
+ *        Phase 1.
+ *      Therefore, all 3 steps for row `i1` can be fused sequentially within
+ *      a SINGLE `#pragma omp for` loop over `i1`.
+ *
+ *   2. Synchronization & Barrier Elimination:
+ *      - Fusing these loops eliminates two global OpenMP barrier synchronizations
+ *        per timestep.
+ *      - Threads process an assigned chunk of rows from start to finish without
+ *        pausing to synchronize at intermediate sub-steps.
+ *
+ *   3. Enhanced Cache Locality (Temporal Reuse):
+ *      - The cache lines for row `i1` of matrices X, A, and B loaded during
+ *        the forward sweep remain hot in L1/L2 cache for the boundary division
+ *        and backward substitution, avoiding redundant DRAM fetches.
+ * ============================================================================ */
 static void kernel_adi(int tsteps,
                        int n,
                        DATA_TYPE POLYBENCH_2D(X, N, N, n, n),
@@ -64,29 +92,44 @@ static void kernel_adi(int tsteps,
 {
   int t, i1, i2;
   
+  /* Persistent thread team active across all simulation timesteps */
   #pragma omp parallel private(t, i1, i2)
   {
     for (t = 0; t < _PB_TSTEPS; t++)
     {
-    
+      /* ----------------------------------------------------------------------
+       * Phase 1: Row-wise Tridiagonal System Solve (Fused Loop Kernel)
+       * A single parallel loop schedules independent rows across threads.
+       * Eliminates 2 intermediate barriers and maximizes L1/L2 cache residency.
+       * ---------------------------------------------------------------------- */
       #pragma omp for
-      for (i1 = 0; i1 < _PB_N; i1++){
-        for (i2 = 1; i2 < _PB_N; i2++) //blocco1
+      for (i1 = 0; i1 < _PB_N; i1++)
+      {
+        /* Sub-step 1.1: Forward elimination along row i1 */
+        for (i2 = 1; i2 < _PB_N; i2++)
         {
           X[i1][i2] = X[i1][i2] - X[i1][i2 - 1] * A[i1][i2] / B[i1][i2 - 1];
           B[i1][i2] = B[i1][i2] - A[i1][i2] * A[i1][i2] / B[i1][i2 - 1];
         }
         
-        
-        //blocco2
+        /* Sub-step 1.2: Boundary normalization on rightmost element */
         X[i1][_PB_N - 1] = X[i1][_PB_N - 1] / B[i1][_PB_N - 1];
       
-        //blocco3
+        /* Sub-step 1.3: Backward substitution along row i1 */
         for (i2 = 0; i2 < _PB_N - 2; i2++)
+        {
           X[i1][_PB_N - i2 - 2] = (X[i1][_PB_N - 2 - i2] - X[i1][_PB_N - 2 - i2 - 1] * A[i1][_PB_N - i2 - 3]) / B[i1][_PB_N - 3 - i2];
+        }
       } 
           
-      for (i1 = 1; i1 < _PB_N; i1++){
+      /* ----------------------------------------------------------------------
+       * Phase 2: Column-wise Tridiagonal System Solve
+       * Note: Outer loop represents the vertical recurrence, requiring inner
+       * work-sharing across columns `i2`.
+       * ---------------------------------------------------------------------- */
+      /* Sub-step 2.1: Forward elimination along columns */
+      for (i1 = 1; i1 < _PB_N; i1++)
+      {
         #pragma omp for
         for (i2 = 0; i2 < _PB_N; i2++)
         {
@@ -95,18 +138,19 @@ static void kernel_adi(int tsteps,
         }
       }
         
+      /* Sub-step 2.2: Boundary normalization on bottom-most elements */
       #pragma omp for
       for (i2 = 0; i2 < _PB_N; i2++)
         X[_PB_N - 1][i2] = X[_PB_N - 1][i2] / B[_PB_N - 1][i2];
         
-        
-      for (i1 = 0; i1 < _PB_N - 2; i1++){
+      /* Sub-step 2.3: Backward substitution along columns */
+      for (i1 = 0; i1 < _PB_N - 2; i1++)
+      {
         #pragma omp for
         for (i2 = 0; i2 < _PB_N; i2++)
           X[_PB_N - 2 - i1][i2] = (X[_PB_N - 2 - i1][i2] - X[_PB_N - i1 - 3][i2] * A[_PB_N - 3 - i1][i2]) / B[_PB_N - 2 - i1][i2];
       }
     }
-  
   }
 }
 
