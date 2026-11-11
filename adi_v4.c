@@ -36,11 +36,14 @@ static int g_row_sweep_chunk_size = 1;
 /* NOTE: I don't think this always guarantees the optimal combination of
  *       chunk size and
  */
-static void find_max_row_sweep_threads(int n) {
-  const int num_jobs = _PB_N / ELEMS_PER_CLINE;
-  while (num_jobs % g_max_row_sweep_threads != 0)
-    --g_max_row_sweep_threads;
-  g_row_sweep_chunk_size = _PB_N / g_max_row_sweep_threads;
+static void find_max_row_sweep_threads(void) {
+  const int num_jobs = N / ELEMS_PER_CLINE;
+  if (N % POLYBENCH_NTHREADS != 0)
+  {
+    while (num_jobs % g_max_row_sweep_threads != 0)
+      --g_max_row_sweep_threads;
+  }
+  g_row_sweep_chunk_size = N / g_max_row_sweep_threads;
 }
 
 /* Array initialization. */
@@ -82,6 +85,8 @@ static void print_array(int n,
    including the call and return. */
 static void kernel_adi(int tsteps,
                        int n,
+                       register int max_row_sweep_threads,
+                       register int row_sweep_chunk_size,
                        DATA_TYPE POLYBENCH_2D(X, N, N, n, n),
                        DATA_TYPE POLYBENCH_2D(A, N, N, n, n),
                        DATA_TYPE POLYBENCH_2D(B, N, N, n, n))
@@ -109,7 +114,7 @@ static void kernel_adi(int tsteps,
 
     for (i1 = 1; i1 < _PB_N; i1++)
     {
-      #pragma omp parallel for schedule(static, g_row_sweep_chunk_size) num_threads(g_max_row_sweep_threads)
+      #pragma omp parallel for schedule(static, row_sweep_chunk_size) num_threads(max_row_sweep_threads)
       for (i2 = 0; i2 < _PB_N; i2++)
       {
         X[i1][i2] = X[i1][i2] - X[i1 - 1][i2] * A[i1][i2] / B[i1 - 1][i2];
@@ -117,7 +122,7 @@ static void kernel_adi(int tsteps,
       }
     }
 
-    #pragma omp parallel for schedule(static, g_row_sweep_chunk_size) num_threads(g_max_row_sweep_threads)
+    #pragma omp parallel for schedule(static, row_sweep_chunk_size) num_threads(max_row_sweep_threads)
     for (i2 = 0; i2 < _PB_N; i2++)
     {
       X[_PB_N - 1][i2] = X[_PB_N - 1][i2] / B[_PB_N - 1][i2];
@@ -125,7 +130,7 @@ static void kernel_adi(int tsteps,
 
     for (i1 = 0; i1 < _PB_N - 2; i1++)
     {
-      #pragma omp parallel for schedule(static, g_row_sweep_chunk_size) num_threads(g_max_row_sweep_threads)
+      #pragma omp parallel for schedule(static, row_sweep_chunk_size) num_threads(max_row_sweep_threads)
       for (i2 = 0; i2 < _PB_N; i2++)
       {
         X[_PB_N - 2 - i1][i2] = (X[_PB_N - 2 - i1][i2] - X[_PB_N - i1 - 3][i2] * A[_PB_N - 3 - i1][i2]) / B[_PB_N - 2 - i1][i2];
@@ -140,12 +145,14 @@ int main(int argc, char **argv)
   int n = N;
   int tsteps = TSTEPS;
 
+  omp_set_num_threads(POLYBENCH_NTHREADS);
+
   /* Variable declaration/allocation. */
   POLYBENCH_2D_ARRAY_DECL(X, DATA_TYPE, N, N, n, n);
   POLYBENCH_2D_ARRAY_DECL(A, DATA_TYPE, N, N, n, n);
   POLYBENCH_2D_ARRAY_DECL(B, DATA_TYPE, N, N, n, n);
 
-  find_max_row_sweep_threads(n);
+  find_max_row_sweep_threads();
 
   printf("Running with %d threads (max row sweep threads: %d, row sweep chunk size: %d)\n",
          POLYBENCH_NTHREADS, g_max_row_sweep_threads, g_row_sweep_chunk_size);
@@ -157,8 +164,8 @@ int main(int argc, char **argv)
   polybench_start_instruments;
 
   /* Run kernel. */
-  kernel_adi(tsteps, n, POLYBENCH_ARRAY(X),
-             POLYBENCH_ARRAY(A), POLYBENCH_ARRAY(B));
+  kernel_adi(tsteps, n, g_max_row_sweep_threads, g_row_sweep_chunk_size,
+             POLYBENCH_ARRAY(X), POLYBENCH_ARRAY(A), POLYBENCH_ARRAY(B));
 
   /* Stop and print timer. */
   polybench_stop_instruments;

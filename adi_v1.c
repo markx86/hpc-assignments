@@ -7,6 +7,7 @@
  *
  * Copyright 2013, The University of Delaware
  */
+#include <omp.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
@@ -123,6 +124,8 @@ int main(int argc, char **argv)
   /* Retrieve problem size. */
   int n = N;
   int tsteps = TSTEPS;
+
+  omp_set_num_threads(POLYBENCH_NTHREADS);
 
   /* Variable declaration/allocation. */
   POLYBENCH_2D_ARRAY_DECL(X, DATA_TYPE, N, N, n, n);

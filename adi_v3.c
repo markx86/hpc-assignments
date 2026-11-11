@@ -38,8 +38,11 @@ static int g_row_sweep_chunk_size = 1;
  */
 static void find_max_row_sweep_threads(int n) {
   const int num_jobs = _PB_N / ELEMS_PER_CLINE;
-  while (num_jobs % g_max_row_sweep_threads != 0)
-    --g_max_row_sweep_threads;
+  if (N % POLYBENCH_NTHREADS != 0)
+  {
+    while (num_jobs % g_max_row_sweep_threads != 0)
+      --g_max_row_sweep_threads;
+  }
   g_row_sweep_chunk_size = _PB_N / g_max_row_sweep_threads;
 }
 
@@ -143,6 +146,8 @@ int main(int argc, char **argv)
   /* Retrieve problem size. */
   int n = N;
   int tsteps = TSTEPS;
+
+  omp_set_num_threads(POLYBENCH_NTHREADS);
 
   /* Variable declaration/allocation. */
   POLYBENCH_2D_ARRAY_DECL(X, DATA_TYPE, N, N, n, n);
