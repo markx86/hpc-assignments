@@ -25,12 +25,20 @@
 
 # include <stdlib.h>
 
+/* Custom macros defined by us */
+# ifndef POLYBENCH_CLINE_SIZE
+#  define POLYBENCH_CLINE_SIZE 64
+# endif
+
+# ifndef POLYBENCH_NTHREADS
+#  define POLYBENCH_NTHREADS 4
+# endif
+
 /* Array padding. By default, none is used. */
 # ifndef POLYBENCH_PADDING_FACTOR
 /* default: */
 #  define POLYBENCH_PADDING_FACTOR 0
 # endif
-
 
 /* C99 arrays in function prototype. By default, do not use. */
 # ifdef POLYBENCH_USE_C99_PROTO
@@ -40,7 +48,6 @@
 #  define POLYBENCH_C99_SELECT(x,y) x
 # endif
 
-
 /* Scalar loop bounds in SCoPs. By default, use parametric loop bounds. */
 # ifdef POLYBENCH_USE_SCALAR_LB
 #  define POLYBENCH_LOOP_BOUND(x,y) x
@@ -48,7 +55,6 @@
 /* default: */
 #  define POLYBENCH_LOOP_BOUND(x,y) y
 # endif
-
 
 /* Macros to reference an array. Generic for heap and stack arrays
    (C99).  Each array dimensionality has his own macro, to be used at
@@ -72,7 +78,6 @@
 # define POLYBENCH_3D(var, dim1, dim2, dim3, ddim1, ddim2, ddim3) var[POLYBENCH_C99_SELECT(dim1,ddim1) + POLYBENCH_PADDING_FACTOR][POLYBENCH_C99_SELECT(dim2,ddim2) + POLYBENCH_PADDING_FACTOR][POLYBENCH_C99_SELECT(dim3,ddim3) + POLYBENCH_PADDING_FACTOR]
 # define POLYBENCH_4D(var, dim1, dim2, dim3, dim4, ddim1, ddim2, ddim3, ddim4) var[POLYBENCH_C99_SELECT(dim1,ddim1) + POLYBENCH_PADDING_FACTOR][POLYBENCH_C99_SELECT(dim2,ddim2) + POLYBENCH_PADDING_FACTOR][POLYBENCH_C99_SELECT(dim3,ddim3) + POLYBENCH_PADDING_FACTOR][POLYBENCH_C99_SELECT(dim4,ddim4) + POLYBENCH_PADDING_FACTOR]
 # define POLYBENCH_5D(var, dim1, dim2, dim3, dim4, dim5, ddim1, ddim2, ddim3, ddim4, ddim5) var[POLYBENCH_C99_SELECT(dim1,ddim1) + POLYBENCH_PADDING_FACTOR][POLYBENCH_C99_SELECT(dim2,ddim2) + POLYBENCH_PADDING_FACTOR][POLYBENCH_C99_SELECT(dim3,ddim3) + POLYBENCH_PADDING_FACTOR][POLYBENCH_C99_SELECT(dim4,ddim4) + POLYBENCH_PADDING_FACTOR][POLYBENCH_C99_SELECT(dim5,ddim5) + POLYBENCH_PADDING_FACTOR]
-
 
 /* Macros to allocate heap arrays.
    Example:
@@ -120,7 +125,6 @@
   type POLYBENCH_5D(POLYBENCH_DECL_VAR(var), dim1, dim2, dim3, dim4, dim5, ddim1, ddim2, ddim3, ddim4, ddim5);
 # endif
 
-
 /* Dead-code elimination macros. Use argc/argv for the run-time check. */
 # ifndef POLYBENCH_DUMP_ARRAYS
 #  define POLYBENCH_DCE_ONLY_CODE    if (argc > 42 && ! strcmp(argv[0], ""))
@@ -132,12 +136,10 @@
   POLYBENCH_DCE_ONLY_CODE			\
   func
 
-
 /* Performance-related instrumentation. See polybench.c */
 # define polybench_start_instruments
 # define polybench_stop_instruments
 # define polybench_print_instruments
-
 
 /* PAPI support. */
 # ifdef POLYBENCH_PAPI
@@ -163,7 +165,6 @@ extern const unsigned int polybench_papi_eventlist[];
 
 #  define polybench_print_instruments polybench_papi_print();
 # endif
-
 
 /* Timing support. */
 # if defined(POLYBENCH_TIME) || defined(POLYBENCH_GFLOPS)
@@ -197,6 +198,5 @@ extern void polybench_papi_print();
 
 /* Function prototypes. */
 extern void* polybench_alloc_data(unsigned long long int n, int elt_size);
-
 
 #endif /* !POLYBENCH_H */

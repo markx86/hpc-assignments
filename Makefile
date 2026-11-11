@@ -11,7 +11,7 @@ CFLAGS = \
 	-Icommon/ \
 	-D$(shell echo $(DATASET) | tr '[:lower:]' '[:upper:]')_DATASET \
 	-DPOLYBENCH_TIME \
-	-DNTHREADS=$(NTHREADS) \
+	-DPOLYBENCH_NTHREADS=$(NTHREADS) \
 	-lm
 
 ifneq ($(DUMP_ARRAYS),)

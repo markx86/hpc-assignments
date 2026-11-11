@@ -12,10 +12,6 @@
 #include <string.h>
 #include <math.h>
 
-#ifndef NTHREADS
-#define NTHREADS 4
-#endif
-
 /* Include polybench common header. */
 #include <polybench.h>
 
@@ -80,11 +76,13 @@ static void kernel_adi(int tsteps,
       }
     }
 
+    #pragma omp parallel for
     for (i1 = 0; i1 < _PB_N; i1++)
     {
       X[i1][_PB_N - 1] = X[i1][_PB_N - 1] / B[i1][_PB_N - 1];
     }
 
+    #pragma omp parallel for private(i2)
     for (i1 = 0; i1 < _PB_N; i1++)
     {
       for (i2 = 0; i2 < _PB_N - 2; i2++)
@@ -131,7 +129,7 @@ int main(int argc, char **argv)
   POLYBENCH_2D_ARRAY_DECL(A, DATA_TYPE, N, N, n, n);
   POLYBENCH_2D_ARRAY_DECL(B, DATA_TYPE, N, N, n, n);
 
-  printf("Running with %d threads\n", NTHREADS);
+  printf("Running with %d threads\n", POLYBENCH_NTHREADS);
 
   /* Initialize array(s). */
   init_array(n, POLYBENCH_ARRAY(X), POLYBENCH_ARRAY(A), POLYBENCH_ARRAY(B));
