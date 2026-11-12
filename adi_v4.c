@@ -68,56 +68,78 @@ static void kernel_adi(int tsteps,
                        DATA_TYPE POLYBENCH_2D(A, N, N, n, n),
                        DATA_TYPE POLYBENCH_2D(B, N, N, n, n))
 {
-  int t, i1, i2;
+  int t, i1, i2, th_i2_end, th_i2_start;
+  int ub, lb, big_chunks;
+  const int nthreads = omp_get_max_threads();
 
-  #define CHUNK_SIZE (((_PB_N / POLYBENCH_NTHREADS) + ELEMS_PER_CLINE - 1) & ~(ELEMS_PER_CLINE - 1))
+  #define CHUNK_SIZE_SMALL ((_PB_N / nthreads) & ~(ELEMS_PER_CLINE - 1))
+  #define CHUNK_SIZE_BIG   (CHUNK_SIZE_SMALL + ELEMS_PER_CLINE)
 
-  #pragma omp parallel private(i1, i2, t)
-  for (t = 0; t < _PB_TSTEPS; t++)
+  for (big_chunks = 0; big_chunks < nthreads; big_chunks++)
   {
-    #pragma omp for
-    for (i1 = 0; i1 < _PB_N; i1++)
+    if (big_chunks * CHUNK_SIZE_BIG + (nthreads- big_chunks) * CHUNK_SIZE_SMALL == _PB_N)
+      break;
+  }
+
+  #pragma omp parallel private(t, i1, i2, th_i2_end, th_i2_start) firstprivate(big_chunks)
+  {
+    const int th_num = omp_get_thread_num();
+
+    if (th_num < big_chunks)
+      th_i2_start = th_num * CHUNK_SIZE_BIG;
+    else
+      th_i2_start = big_chunks * CHUNK_SIZE_BIG + (th_num - big_chunks) * CHUNK_SIZE_SMALL;
+
+    if (__builtin_expect(th_i2_start > _PB_N, 0))
+      th_i2_start = -1;
+    else
+      th_i2_end = th_i2_start + (th_num < big_chunks ? CHUNK_SIZE_BIG : CHUNK_SIZE_SMALL);
+
+    for (t = 0; t < _PB_TSTEPS; t++)
     {
-      for (i2 = 1; i2 < _PB_N; i2++)
+      #pragma omp for
+      for (i1 = 0; i1 < _PB_N; i1++)
       {
-        X[i1][i2] = X[i1][i2] - X[i1][i2 - 1] * A[i1][i2] / B[i1][i2 - 1];
-        B[i1][i2] = B[i1][i2] - A[i1][i2] * A[i1][i2] / B[i1][i2 - 1];
+        for (i2 = 1; i2 < _PB_N; i2++)
+        {
+          X[i1][i2] = X[i1][i2] - X[i1][i2 - 1] * A[i1][i2] / B[i1][i2 - 1];
+          B[i1][i2] = B[i1][i2] - A[i1][i2] * A[i1][i2] / B[i1][i2 - 1];
+        }
+
+        X[i1][_PB_N - 1] = X[i1][_PB_N - 1] / B[i1][_PB_N - 1];
+
+        for (i2 = 0; i2 < _PB_N - 2; i2++)
+        {
+          X[i1][_PB_N - i2 - 2] = (X[i1][_PB_N - i2 - 2] - X[i1][_PB_N - i2 - 3] * A[i1][_PB_N - i2 - 3]) / B[i1][_PB_N - i2 - 3];
+        }
       }
 
-      X[i1][_PB_N - 1] = X[i1][_PB_N - 1] / B[i1][_PB_N - 1];
-
-      for (i2 = 0; i2 < _PB_N - 2; i2++)
+      if (__builtin_expect(th_i2_start >= 0, 1))
       {
-        X[i1][_PB_N - i2 - 2] = (X[i1][_PB_N - 2 - i2] - X[i1][_PB_N - 2 - i2 - 1] * A[i1][_PB_N - i2 - 3]) / B[i1][_PB_N - 3 - i2];
-      }
-    }
+        for (i1 = 1; i1 < _PB_N; i1++)
+        {
+          for (i2 = th_i2_start; i2 < th_i2_end; i2++)
+          {
+            X[i1][i2] = X[i1][i2] - X[i1 - 1][i2] * A[i1][i2] / B[i1 - 1][i2];
+            B[i1][i2] = B[i1][i2] - A[i1][i2] * A[i1][i2] / B[i1 - 1][i2];
+          }
+        }
 
-    for (i1 = 1; i1 < _PB_N; i1++)
-    {
-      #pragma omp for schedule(static, CHUNK_SIZE)
-      for (i2 = 0; i2 < _PB_N; i2++)
-      {
-        // printf("thread=%d, i2=%d\n", omp_get_thread_num(), i2);
-        X[i1][i2] = X[i1][i2] - X[i1 - 1][i2] * A[i1][i2] / B[i1 - 1][i2];
-        B[i1][i2] = B[i1][i2] - A[i1][i2] * A[i1][i2] / B[i1 - 1][i2];
-      }
-    }
+        for (i2 = th_i2_start; i2 < th_i2_end; i2++)
+        {
+          X[_PB_N - 1][i2] = X[_PB_N - 1][i2] / B[_PB_N - 1][i2];
+        }
 
-    // #pragma omp for
-    #pragma omp for schedule(static, CHUNK_SIZE)
-    for (i2 = 0; i2 < _PB_N; i2++)
-    {
-      X[_PB_N - 1][i2] = X[_PB_N - 1][i2] / B[_PB_N - 1][i2];
-    }
-
-    for (i1 = 0; i1 < _PB_N - 2; i1++)
-    {
-      #pragma omp for schedule(static, CHUNK_SIZE)
-      // #pragma omp for
-      for (i2 = 0; i2 < _PB_N; i2++)
-      {
-        X[_PB_N - 2 - i1][i2] = (X[_PB_N - 2 - i1][i2] - X[_PB_N - i1 - 3][i2] * A[_PB_N - 3 - i1][i2]) / B[_PB_N - 2 - i1][i2];
+        for (i1 = 0; i1 < _PB_N - 2; i1++)
+        {
+          for (i2 = th_i2_start; i2 < th_i2_end; i2++)
+          {
+            X[_PB_N - i1 - 2][i2] = (X[_PB_N - i1 - 2][i2] - X[_PB_N - i1 - 3][i2] * A[_PB_N - i1 - 3][i2]) / B[_PB_N - i1 - 2][i2];
+          }
+        }
       }
+
+      #pragma omp barrier
     }
   }
 }
@@ -127,8 +149,6 @@ int main(int argc, char **argv)
   /* Retrieve problem size. */
   int n = N;
   int tsteps = TSTEPS;
-
-  omp_set_num_threads(POLYBENCH_NTHREADS);
 
   /* Variable declaration/allocation. */
   POLYBENCH_2D_ARRAY_DECL(X, DATA_TYPE, N, N, n, n);
