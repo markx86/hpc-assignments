@@ -91,19 +91,12 @@ static void kernel_adi(int tsteps,
 {
   int t, i1, i2;
 
-<<<<<<< HEAD:adi_v1_rc.c
   for (t = 0; t < _PB_TSTEPS; t++)
   {
     /* ------------------------------------------------------------------------
      * Phase 1: Row-wise Tridiagonal Solve
      * Independent work distributed across rows `i1`.
      * ------------------------------------------------------------------------ */
-=======
-  #define CHUNK_SIZE (((_PB_N / POLYBENCH_NTHREADS) + ELEMS_PER_CLINE - 1) & ~(ELEMS_PER_CLINE - 1))
-
-  for (t = 0; t < _PB_TSTEPS; t++)
-  {
->>>>>>> bd8cf9df7b04491583d7abfc8c06f27a5b75e368:adi_v3.c
     #pragma omp parallel for private(i2)
     for (i1 = 0; i1 < _PB_N; i1++)
     {
@@ -112,7 +105,6 @@ static void kernel_adi(int tsteps,
         X[i1][i2] = X[i1][i2] - X[i1][i2 - 1] * A[i1][i2] / B[i1][i2 - 1];
         B[i1][i2] = B[i1][i2] - A[i1][i2] * A[i1][i2] / B[i1][i2 - 1];
       }
-<<<<<<< HEAD:adi_v1_rc.c
     }
 
     /* Note: Unparallelized single loop in this baseline version */
@@ -121,13 +113,6 @@ static void kernel_adi(int tsteps,
       X[i1][_PB_N - 1] = X[i1][_PB_N - 1] / B[i1][_PB_N - 1];
     }
 
-=======
-
-      X[i1][_PB_N - 1] = X[i1][_PB_N - 1] / B[i1][_PB_N - 1];
-    }
-
-    #pragma omp parallel for private(i2)
->>>>>>> bd8cf9df7b04491583d7abfc8c06f27a5b75e368:adi_v3.c
     for (i1 = 0; i1 < _PB_N; i1++)
     {
       for (i2 = 0; i2 < _PB_N - 2; i2++)
@@ -136,7 +121,6 @@ static void kernel_adi(int tsteps,
       }
     }
 
-<<<<<<< HEAD:adi_v1_rc.c
     /* ------------------------------------------------------------------------
      * Phase 2: Column-wise Tridiagonal Solve
      * Independent work distributed across columns `i2`.
@@ -145,11 +129,6 @@ static void kernel_adi(int tsteps,
     for (i1 = 1; i1 < _PB_N; i1++)
     {
       #pragma omp parallel for
-=======
-    for (i1 = 1; i1 < _PB_N; i1++)
-    {
-      #pragma omp parallel for schedule(static, CHUNK_SIZE)
->>>>>>> bd8cf9df7b04491583d7abfc8c06f27a5b75e368:adi_v3.c
       for (i2 = 0; i2 < _PB_N; i2++)
       {
         X[i1][i2] = X[i1][i2] - X[i1 - 1][i2] * A[i1][i2] / B[i1 - 1][i2];
@@ -157,11 +136,7 @@ static void kernel_adi(int tsteps,
       }
     }
 
-<<<<<<< HEAD:adi_v1_rc.c
     #pragma omp parallel for
-=======
-    #pragma omp parallel for schedule(static, CHUNK_SIZE)
->>>>>>> bd8cf9df7b04491583d7abfc8c06f27a5b75e368:adi_v3.c
     for (i2 = 0; i2 < _PB_N; i2++)
     {
       X[_PB_N - 1][i2] = X[_PB_N - 1][i2] / B[_PB_N - 1][i2];
@@ -169,11 +144,7 @@ static void kernel_adi(int tsteps,
 
     for (i1 = 0; i1 < _PB_N - 2; i1++)
     {
-<<<<<<< HEAD:adi_v1_rc.c
       #pragma omp parallel for
-=======
-      #pragma omp parallel for schedule(static, CHUNK_SIZE)
->>>>>>> bd8cf9df7b04491583d7abfc8c06f27a5b75e368:adi_v3.c
       for (i2 = 0; i2 < _PB_N; i2++)
       {
         X[_PB_N - 2 - i1][i2] = (X[_PB_N - 2 - i1][i2] - X[_PB_N - i1 - 3][i2] * A[_PB_N - 3 - i1][i2]) / B[_PB_N - 2 - i1][i2];
