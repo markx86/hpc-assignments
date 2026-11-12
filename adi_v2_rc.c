@@ -54,7 +54,6 @@ static void print_array(int n,
   fprintf(stderr, "\n");
 }
 
-
 /* ============================================================================
  * KERNEL: ADI - Version 2_rc (Row-wise Loop Fusion & Barrier Elimination)
  * Author: Raffaele Cimino

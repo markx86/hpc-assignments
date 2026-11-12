@@ -19,6 +19,8 @@
 # include <omp.h>
 #endif
 
+#include <polybench.h>
+
 /* By default, collect PAPI counters on thread 0. */
 #ifndef POLYBENCH_THREAD_MONITOR
 # define POLYBENCH_THREAD_MONITOR 0
@@ -28,7 +30,6 @@
 #ifndef POLYBENCH_CACHE_SIZE_KB
 # define POLYBENCH_CACHE_SIZE_KB 32770
 #endif
-
 
 int polybench_papi_counters_threadid = POLYBENCH_THREAD_MONITOR;
 double polybench_program_total_flops = 0;
@@ -45,7 +46,6 @@ double polybench_program_total_flops = 0;
   long_long polybench_papi_values[POLYBENCH_MAX_NB_PAPI_COUNTERS];
 
 #endif
-
 
 /* Timer code (gettimeofday). */
 double polybench_t_start, polybench_t_end;
@@ -66,7 +66,6 @@ double rtclock()
     return 0;
 #endif
 }
-
 
 #ifdef POLYBENCH_CYCLE_ACCURATE_TIMER
 static
@@ -97,7 +96,6 @@ void polybench_flush_cache()
   free (flush);
 }
 
-
 #ifdef POLYBENCH_LINUX_FIFO_SCHEDULER
 void polybench_linux_fifo_scheduler()
 {
@@ -107,7 +105,6 @@ void polybench_linux_fifo_scheduler()
   schedParam.sched_priority = sched_get_priority_max (SCHED_FIFO);
   sched_setscheduler (0, SCHED_FIFO, &schedParam);
 }
-
 
 void polybench_linux_standard_scheduler()
 {
@@ -154,7 +151,6 @@ void test_fail(char *file, int line, char *call, int retval)
   exit (1);
 }
 
-
 void polybench_papi_init()
 {
 # ifdef _OPENMP
@@ -188,14 +184,12 @@ void polybench_papi_init()
 	  }
 	polybench_papi_eventlist[k] = 0;
 
-
 # ifdef _OPENMP
       }
   }
 #pragma omp barrier
 # endif
 }
-
 
 void polybench_papi_close()
 {
@@ -251,7 +245,6 @@ int polybench_papi_start_counter(int evid)
   return 0;
 }
 
-
 void polybench_papi_stop_counter(int evid)
 {
 # ifdef _OPENMP
@@ -282,7 +275,6 @@ void polybench_papi_stop_counter(int evid)
 #pragma omp barrier
 # endif
 }
-
 
 void polybench_papi_print()
 {
@@ -328,7 +320,6 @@ void polybench_prepare_instruments()
 #endif
 }
 
-
 void polybench_timer_start()
 {
   polybench_prepare_instruments ();
@@ -338,7 +329,6 @@ void polybench_timer_start()
   polybench_c_start = rdtsc ();
 #endif
 }
-
 
 void polybench_timer_stop()
 {
@@ -351,7 +341,6 @@ void polybench_timer_stop()
   polybench_linux_standard_scheduler ();
 #endif
 }
-
 
 void polybench_timer_print()
 {
@@ -374,14 +363,12 @@ void polybench_timer_print()
 #endif
 }
 
-
-
 static
 void *
 xmalloc (size_t num)
 {
   void* newA = NULL;
-  int ret = posix_memalign (&newA, 32, num);
+  int ret = posix_memalign (&newA, POLYBENCH_CLINE_SIZE, num);
   if (! newA || ret)
     {
       fprintf (stderr, "[PolyBench] posix_memalign: cannot allocate memory");
@@ -389,7 +376,6 @@ xmalloc (size_t num)
     }
   return newA;
 }
-
 
 void* polybench_alloc_data(unsigned long long int n, int elt_size)
 {

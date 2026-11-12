@@ -10,10 +10,6 @@ This project focuses on the parallelization and performance optimization of the 
   - Email: [ciminoraffaele04@hotmail.com](mailto:ciminoraffaele04@hotmail.com)  
   - Role: Implementation of optimized OpenMP kernels (`adi_v1_rc.c`, `adi_v2_rc.c`, `adi_v3_rc.c`), algorithmic optimizations (parallel region hoisting, loop fusion, matrix transposition for cache locality), and test script improvements.
 
-- **markx86**  
-  - Profile: [markx86](https://github.com/markx86) / `<markx86@noreply.codeberg.org>`  
-  - Role: Initial repository structure, baseline reference implementation, Makefile build system, and initial verification framework.
-
 ---
 
 ## Project Structure & Implementations
@@ -101,55 +97,6 @@ make run VER=v2_rc DATASET=standard
 # OpenMP Taskloop & Column Inversion (Raffaele v3)
 make run VER=v3_rc DATASET=standard
 ```
-
-### 4. Scalability Experiments (Varying Thread Counts)
-To test strong scaling, vary the number of OpenMP threads using both the compile-time `NTHREADS` flag and the runtime environment variable `OMP_NUM_THREADS`:
-
-```sh
-# Example: Running v2_rc across 1, 2, 4, 8, 16 threads on standard dataset
-for t in 1 2 4 8 16; do
-    echo "=== Testing VER=v2_rc with $t threads ==="
-    make clean > /dev/null
-    make build VER=v2_rc DATASET=standard NTHREADS=$t > /dev/null
-    OMP_NUM_THREADS=$t ./adi_v2_rc
-done
-```
-
-Repeat the above loop for `v1`, `v1_rc`, and `v3_rc` to record speedup and efficiency curves.
-
-### 5. Dataset Scaling Experiments
-Evaluate how the task-based and column-inverted version (`v3_rc`) behaves across varying matrix dimensions compared to `v2_rc` and the sequential reference:
-```sh
-for ds in small standard large extralarge; do
-    echo "=== Dataset: $ds ==="
-    echo -n "Reference (seq): "
-    make run VER=ref DATASET=$ds 2>/dev/null
-    
-    echo -n "Loop Fusion (v2_rc): "
-    make run VER=v2_rc DATASET=$ds 2>/dev/null
-    
-    echo -n "Taskloop & Inversion (v3_rc): "
-    make run VER=v3_rc DATASET=$ds 2>/dev/null
-done
-```
-
-### 6. Full Benchmark Suite Automation Script
-You can run this shell one-liner to benchmark all versions across thread counts and output a formatted comparison table:
-```sh
-DATASET=standard
-echo "Version,Threads,Time(s)" > benchmark_results.csv
-for ver in v1 v1_rc v2_rc v3_rc; do
-    for t in 1 2 4 8 16; do
-        make clean > /dev/null
-        make build VER=$ver DATASET=$DATASET NTHREADS=$t > /dev/null
-        exec_time=$(OMP_NUM_THREADS=$t ./adi_$ver 2>/dev/null)
-        echo "$ver,$t,$exec_time" >> benchmark_results.csv
-        echo "$ver | Threads: $t | Time: $exec_time s"
-    done
-done
-```
-
----
 
 ## Verification & Correctness Checking
 
