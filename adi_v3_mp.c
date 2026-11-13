@@ -20,14 +20,6 @@
 /* Default data type is double, default size is 10x1024x1024. */
 #include "adi.h"
 
-#define ELEMS_PER_CLINE (POLYBENCH_CLINE_SIZE / sizeof(DATA_TYPE))
-
-#ifndef NO_SANITY_CHECKS
-/* Sanity checks (this should always be true for maximum performance) */
-_Static_assert(POLYBENCH_CLINE_SIZE % sizeof(DATA_TYPE) == 0,
-               "Cache line size is not a multiple of sizeof(DATA_TYPE)");
-#endif
-
 /* Array initialization. */
 static void init_array(int n,
                        DATA_TYPE POLYBENCH_2D(X, N, N, n, n),
@@ -63,26 +55,8 @@ static void print_array(int n,
   fprintf(stderr, "\n");
 }
 
-/* ============================================================================
- * KERNEL: ADI - Version 1 (Baseline Naive OpenMP Parallelization)
- *
- * Parallelization Strategy:
- *   - Directly annotates independent outer loops inside each timestep with
- *     `#pragma omp parallel for`.
- *   - The outer timestep loop `t` remains serial due to strict physical time
- *     dependencies between successive time steps.
- *   - Row iterations (`i1`) in Phase 1 and column iterations (`i2`) in Phase 2
- *     are independent, allowing parallel execution across threads.
- *
- * Architectural & Performance Limitations:
- *   1. High Fork-Join Overhead:
- *      Multiple distinct `#pragma omp parallel for` directives reside inside
- *      the timestep loop `t`. At each timestep, thread teams are repeatedly
- *      activated and synchronized, causing substantial scheduling overhead.
- *   2. Redundant Barriers:
- *      Each parallel construct incurs an implicit barrier at its completion,
- *      causing idle thread spinning / waiting across every sub-step.
- * ============================================================================ */
+/* Main computational kernel. The whole function will be timed,
+   including the call and return. */
 static void kernel_adi(int tsteps,
                        int n,
                        DATA_TYPE POLYBENCH_2D(X, N, N, n, n),
@@ -91,13 +65,10 @@ static void kernel_adi(int tsteps,
 {
   int t, i1, i2;
 
+  #pragma omp parallel private(t, i1, i2)
   for (t = 0; t < _PB_TSTEPS; t++)
   {
-    /* ------------------------------------------------------------------------
-     * Phase 1: Row-wise Tridiagonal Solve
-     * Independent work distributed across rows `i1`.
-     * ------------------------------------------------------------------------ */
-    #pragma omp parallel for private(i2)
+    #pragma omp for
     for (i1 = 0; i1 < _PB_N; i1++)
     {
       for (i2 = 1; i2 < _PB_N; i2++)
@@ -105,30 +76,18 @@ static void kernel_adi(int tsteps,
         X[i1][i2] = X[i1][i2] - X[i1][i2 - 1] * A[i1][i2] / B[i1][i2 - 1];
         B[i1][i2] = B[i1][i2] - A[i1][i2] * A[i1][i2] / B[i1][i2 - 1];
       }
-    }
 
-    /* Note: Unparallelized single loop in this baseline version */
-    for (i1 = 0; i1 < _PB_N; i1++)
-    {
       X[i1][_PB_N - 1] = X[i1][_PB_N - 1] / B[i1][_PB_N - 1];
-    }
 
-    for (i1 = 0; i1 < _PB_N; i1++)
-    {
       for (i2 = 0; i2 < _PB_N - 2; i2++)
       {
         X[i1][_PB_N - i2 - 2] = (X[i1][_PB_N - 2 - i2] - X[i1][_PB_N - 2 - i2 - 1] * A[i1][_PB_N - i2 - 3]) / B[i1][_PB_N - 3 - i2];
       }
     }
 
-    /* ------------------------------------------------------------------------
-     * Phase 2: Column-wise Tridiagonal Solve
-     * Independent work distributed across columns `i2`.
-     * Note: Accesses memory with large stride N, triggering high cache misses.
-     * ------------------------------------------------------------------------ */
     for (i1 = 1; i1 < _PB_N; i1++)
     {
-      #pragma omp parallel for
+      #pragma omp for
       for (i2 = 0; i2 < _PB_N; i2++)
       {
         X[i1][i2] = X[i1][i2] - X[i1 - 1][i2] * A[i1][i2] / B[i1 - 1][i2];
@@ -136,7 +95,7 @@ static void kernel_adi(int tsteps,
       }
     }
 
-    #pragma omp parallel for
+    #pragma omp for
     for (i2 = 0; i2 < _PB_N; i2++)
     {
       X[_PB_N - 1][i2] = X[_PB_N - 1][i2] / B[_PB_N - 1][i2];
@@ -144,7 +103,7 @@ static void kernel_adi(int tsteps,
 
     for (i1 = 0; i1 < _PB_N - 2; i1++)
     {
-      #pragma omp parallel for
+      #pragma omp for
       for (i2 = 0; i2 < _PB_N; i2++)
       {
         X[_PB_N - 2 - i1][i2] = (X[_PB_N - 2 - i1][i2] - X[_PB_N - i1 - 3][i2] * A[_PB_N - 3 - i1][i2]) / B[_PB_N - 2 - i1][i2];
@@ -158,8 +117,6 @@ int main(int argc, char **argv)
   /* Retrieve problem size. */
   int n = N;
   int tsteps = TSTEPS;
-
-  omp_set_num_threads(POLYBENCH_NTHREADS);
 
   /* Variable declaration/allocation. */
   POLYBENCH_2D_ARRAY_DECL(X, DATA_TYPE, N, N, n, n);

@@ -125,8 +125,6 @@ int main(int argc, char **argv)
   int n = N;
   int tsteps = TSTEPS;
 
-  omp_set_num_threads(POLYBENCH_NTHREADS);
-
   /* Variable declaration/allocation. */
   POLYBENCH_2D_ARRAY_DECL(X, DATA_TYPE, N, N, n, n);
   POLYBENCH_2D_ARRAY_DECL(A, DATA_TYPE, N, N, n, n);
