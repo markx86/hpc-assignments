@@ -4,12 +4,6 @@ This project focuses on the parallelization and performance optimization of the 
 
 ---
 
-- **Raffaele Cimino**  
-  - Email: [401858@studenti.unimore.it](mailto:401858@studenti.unimore.it)  
-  - Role: Implementation of optimized OpenMP kernels (`adi_v1_rc.c`, `adi_v2_rc.c`, `adi_v3_rc.c`), algorithmic optimizations (parallel region hoisting, loop fusion, matrix transposition for cache locality), and test script improvements.
-  - **Sorelle Sandra Simo Defo**
-  - Email: [@studenti.unimore.it](mailto:@studenti.unimore.it)   
-
 ## Authors Information
 
 - **Raffaele Cimino**  
