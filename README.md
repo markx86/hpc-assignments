@@ -19,7 +19,7 @@ This project focuses on the parallelization and performance optimization of the 
 - **Sorelle Sandra Simo Defo** (Sandra0502)  
   - GitHub: [@Sandra0502](https://github.com/Sandra0502)  
   - Email: [403213@studenti.unimore.it](mailto:403213@studenti.unimore.it)  
-  - Role: Implementation of OpenMP parallelization variants (`adi_metodo1.c` and `adi_metodo2.c`).
+  - Role: Implementation of OpenMP parallelization variants (`adi_Method1.c` and `adi_Method2.c`).
 
 ---
 
@@ -49,10 +49,10 @@ This project focuses on the parallelization and performance optimization of the 
 - **`adi_v4_mp.c` (Cache-Aligned Chunking & Barrier Tuning - `v4_mp`)**:
   - Implements custom work distribution using cache-line-aligned chunk sizes (`ELEMS_PER_CLINE`), explicit per-thread column bounds (`th_i2_start`, `th_i2_end`), and fine-tuned barrier synchronization.
 
-### Sandra Implementations (`metodo*`)
-- **`adi_metodo1.c` (OpenMP Method 1 - `metodo1`)**:
+### Sandra Implementations (`Method*`)
+- **`adi_Method1.c` (OpenMP Method 1 - `Method1`)**:
   - Parallelization using multiple `#pragma omp parallel for` directives on each inner loop within the timestep iteration.
-- **`adi_metodo2.c` (OpenMP Method 2 - `metodo2`)**:
+- **`adi_Method2.c` (OpenMP Method 2 - `Method2`)**:
   - Parallelization using a single `#pragma omp parallel` region per timestep with `#pragma omp for` worksharing directives for each phase.
 
 ### Headers, Build System & Documentation
@@ -88,7 +88,7 @@ You can pass the following variables to `make`:
   - **Sequential Baseline**: `ref`
   - **Raffaele Cimino Implementations**: `v1_rc`, `v2_rc`, `v3_rc`
   - **markx86 Implementations**: `v1_mp`, `v2_mp`, `v3_mp`, `v4_mp`
-  - **Sandra Implementations**: `metodo1`, `metodo2`
+  - **Sandra Implementations**: `Method1`, `Method2`
 - **`DATASET`**: Specifies the problem dimensions (default: `mini`).  
   Available sizes:
   - `mini`: $N = 32$, $TSTEPS = 2$
@@ -136,8 +136,8 @@ make run VER=v3_mp DATASET=standard
 make run VER=v4_mp DATASET=standard
 
 # Sandra implementations
-make run VER=metodo1 DATASET=standard
-make run VER=metodo2 DATASET=standard
+make run VER=Method1 DATASET=standard
+make run VER=Method2 DATASET=standard
 ```
 
 ## Verification & Correctness Checking
@@ -154,8 +154,8 @@ To verify that the parallel optimizations produce identical results to the refer
 ./test.sh v2_mp
 ./test.sh v3_mp
 ./test.sh v4_mp
-./test.sh metodo1
-./test.sh metodo2
+./test.sh Method1
+./test.sh Method2
 
 # Test with a specific dataset size (e.g. mini or small)
 DATASET=small ./test.sh v2_rc
